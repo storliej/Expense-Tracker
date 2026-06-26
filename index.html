@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Flip Expense Tracker</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --brand-primary: #185FA5;
+    --brand-dark: #0C447C;
+    --brand-mid: #378ADD;
+    --brand-light: #E6F1FB;
+    --green: #3B6D11; --green-light: #EAF3DE;
+    --red: #A32D2D; --red-light: #FCEBEB;
+    --amber: #854F0B; --amber-light: #FAEEDA;
+    --gray-50: #F8F7F4; --gray-100: #EDECE8; --gray-200: #D3D1C7;
+    --gray-400: #888780; --gray-600: #5F5E5A; --gray-800: #2C2C2A;
+    --white: #FFFFFF;
+    --radius: 10px; --radius-sm: 6px; --radius-lg: 14px;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --shadow: 0 2px 8px rgba(0,0,0,0.10);
+  }
+  body { font-family: var(--font); background: var(--gray-50); color: var(--gray-800); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+  /* LOGIN */
+  .login-screen { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; background: linear-gradient(160deg, var(--brand-dark) 0%, var(--brand-primary) 60%, var(--brand-mid) 100%); }
+  .login-logo { width: 72px; height: 72px; background: rgba(255,255,255,0.15); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; backdrop-filter: blur(8px); overflow: hidden; }
+  .login-logo img { width: 100%; height: 100%; object-fit: cover; border-radius: 20px; display: none; }
+  .login-logo svg { width: 36px; height: 36px; fill: none; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .login-biz-name { font-size: 24px; font-weight: 800; color: white; margin-bottom: 4px; text-align: center; letter-spacing: -0.3px; }
+  .login-tagline { font-size: 13px; color: rgba(255,255,255,0.65); margin-bottom: 36px; text-align: center; }
+  .login-card { background: var(--white); border-radius: 20px; padding: 28px 24px; width: 100%; max-width: 360px; box-shadow: 0 8px 40px rgba(0,0,0,0.2); }
+  .login-card h2 { font-size: 17px; font-weight: 600; margin-bottom: 20px; }
+  .login-field { margin-bottom: 14px; }
+  .login-field label { font-size: 12px; font-weight: 500; color: var(--gray-600); display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .login-field input { width: 100%; padding: 12px 14px; font-size: 16px; font-family: var(--font); border: 1.5px solid var(--gray-200); border-radius: var(--radius); background: var(--white); color: var(--gray-800); outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+  .login-field input:focus { border-color: var(--brand-mid); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-mid) 15%, transparent); }
+  .pin-input { letter-spacing: 0.3em !important; font-size: 20px !important; text-align: center; }
+  .login-btn { width: 100%; padding: 14px; background: var(--brand-primary); color: white; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 600; font-family: var(--font); cursor: pointer; margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.15s; }
+  .login-btn:hover { background: var(--brand-dark); }
+  .login-btn:disabled { background: var(--gray-200); color: var(--gray-400); cursor: not-allowed; }
+  .login-error { font-size: 13px; color: var(--red); text-align: center; margin-top: 10px; min-height: 18px; }
+
+  /* APP */
+  .app-shell { display: none; flex-direction: column; min-height: 100vh; }
+  .app-shell.visible { display: flex; }
+
+  /* BRANDED HEADER */
+  .app-header { background: var(--brand-primary); padding: 0 16px; display: flex; align-items: stretch; position: sticky; top: 0; z-index: 100; min-height: 54px; }
+  .header-brand { display: flex; align-items: center; gap: 10px; flex: 1; padding: 10px 0; }
+  .header-logo { width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+  .header-logo img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: none; }
+  .header-logo svg { width: 16px; height: 16px; fill: none; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .header-text { }
+  .header-biz { font-size: 14px; font-weight: 700; color: white; line-height: 1.2; }
+  .header-sub { font-size: 10px; color: rgba(255,255,255,0.65); font-weight: 400; }
+  .user-chip { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.15); border-radius: 20px; padding: 5px 10px 5px 6px; cursor: pointer; align-self: center; transition: background 0.15s; }
+  .user-chip:hover { background: rgba(255,255,255,0.25); }
+  .user-avatar { width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.3); color: white; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .user-chip .u-name { font-size: 12px; font-weight: 500; color: white; }
+  .role-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .role-admin { background: #FEF3C7; color: #854F0B; }
+  .role-user { background: rgba(255,255,255,0.2); color: white; }
+
+  /* TABS */
+  .tab-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--white); border-top: 1px solid var(--gray-100); display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+  .tab-btn { flex: 1; padding: 10px 0 12px; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--gray-400); font-family: var(--font); font-size: 10px; font-weight: 500; transition: color 0.15s; }
+  .tab-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .tab-btn.active { color: var(--brand-primary); }
+
+  /* CONTENT */
+  .container { max-width: 480px; margin: 0 auto; padding: 20px 16px 100px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* CARDS */
+  .card { background: var(--white); border-radius: var(--radius-lg); border: 1px solid var(--gray-100); padding: 20px; margin-bottom: 14px; }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--gray-600); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 16px; }
+
+  /* FORMS */
+  .field { margin-bottom: 14px; }
+  .field-label { font-size: 12px; font-weight: 500; color: var(--gray-600); margin-bottom: 6px; display: block; }
+  .field-label span { color: var(--red); margin-left: 2px; }
+  input[type="text"], input[type="number"], input[type="password"], input[type="color"], select, textarea { width: 100%; padding: 11px 13px; font-size: 15px; font-family: var(--font); border: 1.5px solid var(--gray-200); border-radius: var(--radius); background: var(--white); color: var(--gray-800); appearance: none; outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+  input:focus, select:focus, textarea:focus { border-color: var(--brand-mid); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-mid) 15%, transparent); }
+  select { background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888780' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+  textarea { resize: none; height: 72px; line-height: 1.5; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  input[type="color"] { padding: 4px 6px; height: 44px; cursor: pointer; border-radius: var(--radius); }
+
+  /* UPLOAD */
+  .upload-zone { border: 2px dashed var(--gray-200); border-radius: var(--radius-lg); padding: 28px 20px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; background: var(--gray-50); }
+  .upload-zone:hover { border-color: var(--brand-mid); background: var(--brand-light); }
+  .upload-zone .upload-icon { font-size: 32px; margin-bottom: 8px; }
+  .upload-zone .upload-title { font-size: 14px; font-weight: 600; color: var(--gray-800); margin-bottom: 4px; }
+  .upload-zone .upload-sub { font-size: 12px; color: var(--gray-400); }
+  .receipt-preview { display: none; align-items: center; gap: 12px; background: var(--brand-light); border: 1.5px solid #B5D4F4; border-radius: var(--radius); padding: 12px 14px; margin-top: 12px; }
+  .receipt-thumb { width: 48px; height: 48px; border-radius: var(--radius-sm); flex-shrink: 0; background: var(--gray-100); display: flex; align-items: center; justify-content: center; font-size: 22px; overflow: hidden; }
+  .receipt-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-sm); }
+  .receipt-meta { flex: 1; min-width: 0; }
+  .receipt-fname { font-size: 13px; font-weight: 600; color: var(--brand-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .receipt-fsize { font-size: 11px; color: var(--brand-primary); margin-top: 2px; }
+  .remove-btn { background: none; border: none; cursor: pointer; color: var(--brand-primary); font-size: 20px; padding: 4px; flex-shrink: 0; line-height: 1; }
+
+  /* BUTTONS */
+  .submit-btn { width: 100%; padding: 15px; background: var(--brand-primary); color: white; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 600; font-family: var(--font); cursor: pointer; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.15s, transform 0.1s; }
+  .submit-btn:hover { background: var(--brand-dark); }
+  .submit-btn:active { transform: scale(0.98); }
+  .submit-btn:disabled { background: var(--gray-200); color: var(--gray-400); cursor: not-allowed; transform: none; }
+  .submit-btn .spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  .btn-sm { padding: 8px 14px !important; font-size: 13px !important; width: auto !important; margin-top: 0 !important; }
+  .btn-secondary { background: var(--gray-200) !important; color: var(--gray-800) !important; }
+  .btn-secondary:hover { background: var(--gray-200) !important; }
+  .btn-danger { background: var(--red) !important; }
+  .btn-danger:hover { background: #8A1F1F !important; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* TOAST */
+  .toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%) translateY(-20px); padding: 12px 20px; border-radius: var(--radius); font-size: 13px; font-weight: 600; box-shadow: var(--shadow); opacity: 0; transition: opacity 0.25s, transform 0.25s; z-index: 300; white-space: nowrap; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { background: var(--green-light); color: var(--green); border: 1px solid #C0DD97; }
+  .toast.error { background: var(--red-light); color: var(--red); border: 1px solid #F09595; }
+
+  /* EXPENSES */
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  .filter-chip { flex-shrink: 0; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; border: 1.5px solid var(--gray-200); background: var(--white); color: var(--gray-600); cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+  .filter-chip.active { background: var(--brand-primary); border-color: var(--brand-primary); color: white; }
+  .expense-card { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 10px; display: flex; gap: 14px; align-items: flex-start; }
+  .expense-dot { width: 38px; height: 38px; border-radius: 10px; background: var(--brand-light); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .expense-body { flex: 1; min-width: 0; }
+  .expense-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .expense-vendor { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .expense-amount { font-size: 15px; font-weight: 700; flex-shrink: 0; }
+  .expense-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; text-decoration: none; }
+  .tag-prop { background: var(--gray-100); color: var(--gray-600); }
+  .tag-sow { background: var(--brand-light); color: var(--brand-dark); }
+  .tag-receipt { background: var(--green-light); color: var(--green); }
+  .tag-user { background: #F3E8FF; color: #5B21B6; }
+  .expense-notes { font-size: 12px; color: var(--gray-400); margin-top: 5px; }
+  .expense-date { font-size: 11px; color: var(--gray-400); margin-top: 4px; }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--gray-400); }
+  .empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+  /* SOW */
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .stat-tile { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg); padding: 16px; }
+  .stl { font-size: 11px; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .stv { font-size: 22px; font-weight: 700; }
+  .sts { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+  .prog-bar { height: 4px; background: var(--gray-100); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .prog-fill { height: 100%; border-radius: 2px; background: var(--brand-primary); transition: width 0.4s; }
+  .prog-fill.warn { background: #EF9F27; }
+  .prog-fill.over { background: var(--red); }
+  .sow-line { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--gray-100); }
+  .sow-line:last-child { border-bottom: none; }
+  .sow-line-name { flex: 1; font-size: 13px; }
+  .sow-line-nums { text-align: right; }
+  .sow-line-spent { font-size: 13px; font-weight: 600; }
+  .sow-line-budget { font-size: 11px; color: var(--gray-400); }
+  .sow-line-spent.ok { color: var(--gray-800); }
+  .sow-line-spent.warn { color: var(--amber); }
+  .sow-line-spent.over { color: var(--red); }
+  .mini-prog { width: 60px; height: 3px; background: var(--gray-100); border-radius: 2px; overflow: hidden; }
+  .mini-fill { height: 100%; border-radius: 2px; background: var(--brand-primary); }
+  .mini-fill.warn { background: #EF9F27; }
+  .mini-fill.over { background: var(--red); }
+
+  /* ADMIN */
+  .info-banner { background: var(--brand-light); border: 1px solid #B5D4F4; border-radius: var(--radius); padding: 12px 14px; font-size: 12px; color: var(--brand-dark); margin-bottom: 14px; line-height: 1.6; }
+  .warn-banner { background: var(--amber-light); border: 1.5px solid #FAC775; border-radius: var(--radius-lg); padding: 16px; margin-bottom: 14px; }
+  .warn-banner h3 { font-size: 13px; font-weight: 600; color: var(--amber); margin-bottom: 6px; }
+  .warn-banner p { font-size: 12px; color: var(--amber); line-height: 1.6; margin-bottom: 10px; }
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .section-header h3 { font-size: 14px; font-weight: 600; }
+  .collapsible-form { background: var(--brand-light); border: 1.5px solid #B5D4F4; border-radius: var(--radius-lg); padding: 16px; margin-bottom: 14px; display: none; }
+  .collapsible-form.open { display: block; }
+  .collapsible-form .card-title { color: var(--brand-dark); margin-bottom: 12px; }
+  .checkbox-group { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .checkbox-item { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .checkbox-item input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--brand-primary); flex-shrink: 0; }
+  .checkbox-item span { font-size: 13px; }
+  .user-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--gray-100); }
+  .user-row:last-child { border-bottom: none; }
+  .user-row-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--brand-primary); color: white; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .user-row-body { flex: 1; min-width: 0; }
+  .user-row-name { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .prop-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+  .icon-btn { background: var(--gray-50); border: 1px solid var(--gray-100); border-radius: var(--radius-sm); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; flex-shrink: 0; }
+  .icon-btn:hover { background: var(--gray-100); }
+  .prop-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--gray-100); }
+  .prop-row:last-child { border-bottom: none; }
+  .prop-row-name { flex: 1; font-size: 13px; font-weight: 500; }
+  .prop-row-budget { font-size: 12px; color: var(--gray-400); }
+  .color-swatch { width: 36px; height: 36px; border-radius: 8px; border: 2px solid var(--gray-200); cursor: pointer; transition: transform 0.1s; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .color-swatch.active { border-color: var(--brand-primary); transform: scale(1.1); }
+  .color-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 400; display: none; align-items: flex-end; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--white); border-radius: 20px 20px 0 0; padding: 24px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+  .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+  /* FORGOT PIN */
+  .pin-reset-link { text-align: center; margin-top: 12px; font-size: 12px; color: var(--gray-400); }
+  .pin-reset-link a { color: var(--brand-primary); text-decoration: none; font-weight: 500; }
+
+  /* SETUP NOTICE */
+  .setup-needed { background: var(--amber-light); border: 1.5px solid #FAC775; border-radius: var(--radius); padding: 12px 14px; font-size: 12px; color: var(--amber); margin-bottom: 16px; line-height: 1.6; }
+
+  /* COLOR PREVIEW */
+  .brand-preview { border-radius: var(--radius); padding: 14px 16px; display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .preview-logo { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
+  .preview-logo svg { width: 16px; height: 16px; fill: none; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .preview-text { color: white; font-size: 14px; font-weight: 700; }
+  .preview-sub { color: rgba(255,255,255,0.65); font-size: 10px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" class="login-screen">
+  <div class="login-logo" id="login-logo">
+    <img id="login-logo-img" src="" alt="logo" />
+    <svg id="login-logo-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+  </div>
+  <div class="login-biz-name" id="login-biz-name">Asymmetric Acquisitions</div>
+  <div class="login-tagline" id="login-tagline">Expense Tracker</div>
+  <div class="login-card">
+    <div id="no-url-warning" class="setup-needed" style="display:none">⚙️ <strong>Setup needed:</strong> Admin must configure the Google Sheet connection first.</div>
+    <h2>Sign in</h2>
+    <div class="login-field"><label>Your name</label><input type="text" id="login-name" placeholder="e.g. Jeff" autocomplete="off" autocapitalize="words" /></div>
+    <div class="login-field"><label>PIN</label><input type="password" id="login-pin" class="pin-input" placeholder="••••" maxlength="8" inputmode="numeric" /></div>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+      Sign in
+    </button>
+    <div class="login-error" id="login-error"></div>
+    <div class="pin-reset-link"><a href="#" onclick="openPinReset(); return false;">Forgot PIN? Contact your admin</a></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-shell" class="app-shell">
+  <header class="app-header" id="app-header">
+    <div class="header-brand">
+      <div class="header-logo" id="header-logo">
+        <img id="header-logo-img" src="" alt="logo" />
+        <svg id="header-logo-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
+      <div class="header-text">
+        <div class="header-biz" id="header-biz">Asymmetric Acquisitions</div>
+        <div class="header-sub" id="header-sub">Expense Tracker</div>
+      </div>
+    </div>
+    <div class="user-chip" onclick="doLogout()">
+      <div class="user-avatar" id="header-avatar">?</div>
+      <span class="u-name" id="header-name">User</span>
+      <span class="role-badge" id="header-role">user</span>
+    </div>
+  </header>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="container">
+
+    <!-- LOG -->
+    <div id="page-log" class="page active">
+      <div class="card">
+        <div class="card-title">Property &amp; category</div>
+        <div class="field"><label class="field-label">Property <span>*</span></label><select id="sel-property" onchange="updateSOWItems()"><option value="">Select property...</option></select></div>
+        <div class="field"><label class="field-label">SOW line item <span>*</span></label><select id="sel-sow"><option value="">Select property first...</option></select></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Expense details</div>
+        <div class="field"><label class="field-label">Vendor / payee <span>*</span></label><input type="text" id="inp-vendor" placeholder="e.g. Home Depot" autocomplete="off" /></div>
+        <div class="row2">
+          <div class="field"><label class="field-label">Amount <span>*</span></label><input type="number" id="inp-amount" placeholder="0.00" step="0.01" min="0" inputmode="decimal" /></div>
+          <div class="field"><label class="field-label">Date</label><input type="text" id="inp-date" readonly style="background:var(--gray-50);color:var(--gray-400);cursor:default;" /></div>
+        </div>
+        <div class="field"><label class="field-label">Notes</label><textarea id="inp-notes" placeholder="Materials, labor details, etc."></textarea></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Receipt</div>
+        <div id="upload-zone" class="upload-zone" onclick="document.getElementById('file-inp').click()">
+          <div class="upload-icon">📷</div>
+          <div class="upload-title">Take photo or upload file</div>
+          <div class="upload-sub">JPG, PNG, PDF · max 10 MB</div>
+        </div>
+        <div id="receipt-preview" class="receipt-preview">
+          <div class="receipt-thumb" id="receipt-thumb">📄</div>
+          <div class="receipt-meta"><div class="receipt-fname" id="receipt-fname">receipt.jpg</div><div class="receipt-fsize" id="receipt-fsize">0 KB</div></div>
+          <button class="remove-btn" onclick="clearReceipt()">✕</button>
+        </div>
+        <input type="file" id="file-inp" accept="image/*,.pdf" capture="environment" style="display:none;" onchange="handleFile(this)" />
+      </div>
+      <button class="submit-btn" id="submit-btn" onclick="submitExpense()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+        Log expense
+      </button>
+    </div>
+
+    <!-- EXPENSES -->
+    <div id="page-expenses" class="page">
+      <div class="filter-bar" id="filter-bar"></div>
+      <div id="expense-list"></div>
+    </div>
+
+    <!-- SOW -->
+    <div id="page-sow" class="page">
+      <div class="field"><select id="sow-prop-sel" onchange="renderSOW()"></select></div>
+      <div class="stats-row" id="sow-stats"></div>
+      <div class="card" id="sow-lines"></div>
+    </div>
+
+    <!-- ADMIN -->
+    <div id="page-admin" class="page">
+      <div class="info-banner">👋 Admin view — you see all properties and expenses. Manage users, properties, and branding below.</div>
+
+      <!-- SCRIPT URL -->
+      <div class="warn-banner" id="admin-setup-banner" style="display:none">
+        <h3>⚙️ Connect Google Sheet</h3>
+        <p>Paste your Apps Script deployment URL to sync expenses and receipts to Google Drive.</p>
+        <div class="field"><input type="text" id="script-url-input" placeholder="https://script.google.com/macros/s/..." style="background:white;" /></div>
+        <button class="submit-btn btn-sm" onclick="saveScriptUrl()" style="margin-top:10px;">Save URL</button>
+      </div>
+
+      <!-- BRANDING -->
+      <div class="card">
+        <div class="card-title">Branding</div>
+        <div class="field">
+          <label class="field-label">Business name</label>
+          <input type="text" id="brand-name" placeholder="Asymmetric Acquisitions" />
+        </div>
+        <div class="field">
+          <label class="field-label">Tagline / subtitle</label>
+          <input type="text" id="brand-tagline" placeholder="Expense Tracker" />
+        </div>
+        <div class="field">
+          <label class="field-label">Primary color</label>
+          <div class="color-row" id="color-swatches"></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+            <input type="color" id="brand-color-custom" style="width:60px;height:44px;padding:4px;" />
+            <span style="font-size:12px;color:var(--gray-400);">Custom color</span>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label">Preview</label>
+          <div class="brand-preview" id="brand-preview" style="background:var(--brand-primary);">
+            <div class="preview-logo"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+            <div><div class="preview-text" id="preview-biz-name">Asymmetric Acquisitions</div><div class="preview-sub" id="preview-tagline">Expense Tracker</div></div>
+          </div>
+        </div>
+        <button class="submit-btn" onclick="saveBranding()">Save branding</button>
+      </div>
+
+      <!-- USERS -->
+      <div class="card">
+        <div class="section-header"><h3>Users</h3><button class="submit-btn btn-sm" onclick="toggleForm('add-user-form')">+ Add user</button></div>
+        <div class="collapsible-form" id="add-user-form">
+          <div class="card-title">New user</div>
+          <div class="field"><label class="field-label">Name <span>*</span></label><input type="text" id="new-name" placeholder="e.g. Jeff" /></div>
+          <div class="field"><label class="field-label">PIN <span>*</span></label><input type="text" id="new-pin" placeholder="4–8 digits" maxlength="8" inputmode="numeric" /></div>
+          <div class="field"><label class="field-label">Role</label>
+            <select id="new-role">
+              <option value="user">User (assigned properties only)</option>
+              <option value="admin">Admin (all properties)</option>
+            </select>
+          </div>
+          <div class="field"><label class="field-label">Assign properties</label><div class="checkbox-group" id="new-prop-checks"></div></div>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <button class="submit-btn btn-sm" onclick="addUser()" style="flex:1;">Save user</button>
+            <button class="submit-btn btn-sm btn-secondary" onclick="toggleForm('add-user-form')" style="flex:1;">Cancel</button>
+          </div>
+        </div>
+        <div id="user-list"></div>
+      </div>
+
+      <!-- PROPERTIES -->
+      <div class="card">
+        <div class="section-header"><h3>Properties</h3><button class="submit-btn btn-sm" onclick="toggleForm('add-prop-form')">+ Add property</button></div>
+        <div class="collapsible-form" id="add-prop-form">
+          <div class="card-title">New property</div>
+          <div class="field"><label class="field-label">Property name <span>*</span></label><input type="text" id="new-prop-name" placeholder="e.g. 123 Maple Ave — Denver" /></div>
+          <div class="row2">
+            <div class="field"><label class="field-label">Purchase price</label><input type="number" id="new-prop-purchase" placeholder="0" /></div>
+            <div class="field"><label class="field-label">Target ARV</label><input type="number" id="new-prop-arv" placeholder="0" /></div>
+          </div>
+          <div class="field"><label class="field-label">Total reno budget <span>*</span></label><input type="number" id="new-prop-budget" placeholder="75000" /></div>
+          <div class="info-banner" style="margin-bottom:12px;">📋 Your full 63-item SOW template is pre-loaded below. Just enter budgets for the line items that apply — leave unused ones at $0.</div>
+          <div id="sow-phase-list"></div>
+          <div style="display:flex;gap:8px;margin-top:12px;">
+            <button class="submit-btn btn-sm" onclick="addProperty()" style="flex:1;">Save property</button>
+            <button class="submit-btn btn-sm btn-secondary" onclick="toggleForm('add-prop-form')" style="flex:1;">Cancel</button>
+          </div>
+        </div>
+        <div id="prop-list"></div>
+      </div>
+
+      <!-- PIN RESET -->
+      <div class="card">
+        <div class="card-title">Reset a user's PIN</div>
+        <div class="field"><label class="field-label">Select user</label><select id="reset-user-sel"></select></div>
+        <div class="field"><label class="field-label">New PIN</label><input type="text" id="reset-new-pin" placeholder="4–8 digits" maxlength="8" inputmode="numeric" /></div>
+        <button class="submit-btn" onclick="resetPIN()">Reset PIN</button>
+      </div>
+
+    </div><!-- /admin -->
+  </div><!-- /container -->
+
+  <nav class="tab-nav">
+    <button class="tab-btn active" id="tbtn-log" onclick="showTab('log')"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>Log</button>
+    <button class="tab-btn" id="tbtn-expenses" onclick="showTab('expenses')"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>Expenses</button>
+    <button class="tab-btn" id="tbtn-sow" onclick="showTab('sow')"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Budget</button>
+    <button class="tab-btn" id="tbtn-admin" style="display:none" onclick="showTab('admin')"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>Admin</button>
+  </nav>
+</div>
+
+<!-- PIN RESET MODAL (for non-admins) -->
+<div class="modal-overlay" id="pin-reset-modal">
+  <div class="modal">
+    <div class="modal-title">🔐 Forgot your PIN?</div>
+    <p style="font-size:13px;color:var(--gray-600);line-height:1.6;margin-bottom:16px;">Contact your admin to reset your PIN. They can do it from the Admin tab → "Reset a user's PIN."</p>
+    <div class="field"><label class="field-label">Your name (for reference)</label><input type="text" id="reset-name-display" readonly style="background:var(--gray-50);color:var(--gray-400);" /></div>
+    <div class="modal-actions"><button class="submit-btn" onclick="closeModal('pin-reset-modal')">Got it</button></div>
+  </div>
+</div>
+
+<script>
+// ═══ CONSTANTS ════════════════════════════════════════════════════════════════
+const COLOR_PRESETS = [
+  { label:'Navy', value:'#185FA5' },
+  { label:'Forest', value:'#2D6A4F' },
+  { label:'Charcoal', value:'#3D3D3D' },
+  { label:'Burgundy', value:'#7B2D3E' },
+  { label:'Slate', value:'#4A5568' },
+  { label:'Rust', value:'#9C4A1A' },
+  { label:'Teal', value:'#0F7C80' },
+  { label:'Purple', value:'#5B21B6' },
+];
+
+const PROP_EMOJIS = { default:'🏠', co:'🏔️', stl:'🏡', build:'🏗️', tool:'🔨', key:'🔑' };
+
+// ═══ SOW TEMPLATE (from AA_Flip_Budget_Template.xlsx) ════════════════════════
+const SOW_TEMPLATE = [
+  {phase:"Phase 1 · Soft Costs / Pre-Construction", code:"1010", name:"Permits & Plans"},
+  {phase:"Phase 1 · Soft Costs / Pre-Construction", code:"1020", name:"Legal / Title"},
+  {phase:"Phase 1 · Soft Costs / Pre-Construction", code:"1030", name:"Survey / Plot Plan"},
+  {phase:"Phase 1 · Soft Costs / Pre-Construction", code:"1040", name:"Mold Abatement"},
+  {phase:"Phase 1 · Soft Costs / Pre-Construction", code:"1050", name:"Termite / Pest Treatment"},
+  {phase:"Phase 1 · Soft Costs / Pre-Construction", code:"1060", name:"Dumpster(s)"},
+  {phase:"Phase 2 · Demo & Site Prep", code:"2010", name:"Demolition / Cleanout"},
+  {phase:"Phase 2 · Demo & Site Prep", code:"2020", name:"Hazmat Removal"},
+  {phase:"Phase 2 · Demo & Site Prep", code:"2030", name:"Sitework / Grading"},
+  {phase:"Phase 2 · Demo & Site Prep", code:"2040", name:"Foundation Repair"},
+  {phase:"Phase 3 · Rough-In / Mechanicals", code:"3010", name:"Framing"},
+  {phase:"Phase 3 · Rough-In / Mechanicals", code:"3020", name:"Plumbing – Rough"},
+  {phase:"Phase 3 · Rough-In / Mechanicals", code:"3030", name:"Electrical – Rough"},
+  {phase:"Phase 3 · Rough-In / Mechanicals", code:"3040", name:"HVAC – Rough"},
+  {phase:"Phase 3 · Rough-In / Mechanicals", code:"3050", name:"Insulation"},
+  {phase:"Phase 4 · Exterior / Envelope", code:"4010", name:"Roof"},
+  {phase:"Phase 4 · Exterior / Envelope", code:"4020", name:"Gutters, Soffit & Fascia"},
+  {phase:"Phase 4 · Exterior / Envelope", code:"4030", name:"Siding / Cladding"},
+  {phase:"Phase 4 · Exterior / Envelope", code:"4040", name:"Windows & Exterior Doors"},
+  {phase:"Phase 4 · Exterior / Envelope", code:"4050", name:"Exterior Paint"},
+  {phase:"Phase 4 · Exterior / Envelope", code:"4060", name:"Garage"},
+  {phase:"Phase 4 · Exterior / Envelope", code:"4070", name:"Concrete / Flatwork"},
+  {phase:"Phase 4 · Exterior / Envelope", code:"4080", name:"Fence"},
+  {phase:"Phase 4 · Exterior / Envelope", code:"4090", name:"Deck / Porch"},
+  {phase:"Phase 4 · Exterior / Envelope", code:"4100", name:"Landscaping / Yard"},
+  {phase:"Phase 5 · Top-Out / Interior Shell", code:"5010", name:"Drywall"},
+  {phase:"Phase 5 · Top-Out / Interior Shell", code:"5020", name:"Interior Paint"},
+  {phase:"Phase 5 · Top-Out / Interior Shell", code:"5030", name:"Interior Doors"},
+  {phase:"Phase 5 · Top-Out / Interior Shell", code:"5040", name:"Trim, Base & Molding"},
+  {phase:"Phase 5 · Top-Out / Interior Shell", code:"5050", name:"Flooring"},
+  {phase:"Phase 5 · Top-Out / Interior Shell", code:"5060", name:"Stairs"},
+  {phase:"Phase 5 · Top-Out / Interior Shell", code:"5070", name:"Fireplace"},
+  {phase:"Phase 5 · Top-Out / Interior Shell", code:"5080", name:"Blinds / Window Treatments"},
+  {phase:"Phase 6 · Kitchen", code:"6010", name:"Cabinets"},
+  {phase:"Phase 6 · Kitchen", code:"6020", name:"Countertops"},
+  {phase:"Phase 6 · Kitchen", code:"6030", name:"Backsplash"},
+  {phase:"Phase 6 · Kitchen", code:"6040", name:"Sink & Faucet"},
+  {phase:"Phase 6 · Kitchen", code:"6050", name:"Appliances"},
+  {phase:"Phase 6 · Kitchen", code:"6060", name:"Kitchen Hardware"},
+  {phase:"Phase 7 · Bathrooms", code:"7010", name:"Tile – Shower / Tub Surround"},
+  {phase:"Phase 7 · Bathrooms", code:"7020", name:"Tile – Floor"},
+  {phase:"Phase 7 · Bathrooms", code:"7030", name:"Tub / Shower Unit"},
+  {phase:"Phase 7 · Bathrooms", code:"7040", name:"Vanity & Cabinets"},
+  {phase:"Phase 7 · Bathrooms", code:"7050", name:"Countertop & Sink"},
+  {phase:"Phase 7 · Bathrooms", code:"7060", name:"Toilet"},
+  {phase:"Phase 7 · Bathrooms", code:"7070", name:"Mirrors & Medicine Cabinet"},
+  {phase:"Phase 7 · Bathrooms", code:"7080", name:"Fixtures & Hardware"},
+  {phase:"Phase 8 · Finish-Out / Mechanical Finish", code:"8010", name:"Plumbing – Finish"},
+  {phase:"Phase 8 · Finish-Out / Mechanical Finish", code:"8020", name:"Electrical – Finish"},
+  {phase:"Phase 8 · Finish-Out / Mechanical Finish", code:"8030", name:"HVAC – Finish"},
+  {phase:"Phase 8 · Finish-Out / Mechanical Finish", code:"8040", name:"Lighting"},
+  {phase:"Phase 8 · Finish-Out / Mechanical Finish", code:"8050", name:"Security / Smart Home"},
+  {phase:"Phase 9 · Punch List", code:"9010", name:"Touch-Up Paint"},
+  {phase:"Phase 9 · Punch List", code:"9020", name:"Caulk & Seal"},
+  {phase:"Phase 9 · Punch List", code:"9030", name:"Hardware Install"},
+  {phase:"Phase 9 · Punch List", code:"9040", name:"Final Clean"},
+  {phase:"Phase 9 · Punch List", code:"9050", name:"Miscellaneous"},
+  {phase:"Phase 10 · Holding Costs", code:"0010", name:"Draw Fees"},
+  {phase:"Phase 10 · Holding Costs", code:"0020", name:"Hard Money Interest"},
+  {phase:"Phase 10 · Holding Costs", code:"0030", name:"Insurance"},
+  {phase:"Phase 10 · Holding Costs", code:"0040", name:"Utilities"},
+  {phase:"Phase 10 · Holding Costs", code:"0050", name:"HOA Fees"},
+  {phase:"Contingency", code:"CONT", name:"Contingency Reserve (10%)"},
+];
+
+function blankPropertyFromTemplate(budget=0) {
+  return { budget, purchase:0, arv:0, items: SOW_TEMPLATE.map(t => ({name:t.name, code:t.code, phase:t.phase, budget:0})) };
+}
+
+// ═══ STATE ════════════════════════════════════════════════════════════════════
+let properties = JSON.parse(localStorage.getItem('flip_properties') || 'null') || {
+  "Royal Oak — Colorado Springs": blankPropertyFromTemplate(95500),
+  "Bon Hills — St. Louis":        blankPropertyFromTemplate(42000),
+  "New London — St. Louis":       blankPropertyFromTemplate(38000),
+  "Corey Street":                 blankPropertyFromTemplate(55000),
+  "Sunday Street":                blankPropertyFromTemplate(48000),
+  "Newport Drive":                blankPropertyFromTemplate(62000),
+};
+
+let users = JSON.parse(localStorage.getItem('flip_users') || 'null') || [
+  { name:"Jeff", pin:"0000", role:"admin", properties: Object.keys(properties) }
+];
+
+let branding = JSON.parse(localStorage.getItem('flip_branding') || 'null') || {
+  name: "Asymmetric Acquisitions", tagline: "Expense Tracker", color: "#185FA5"
+};
+
+let expenses = JSON.parse(localStorage.getItem('flip_expenses') || '[]');
+let currentUser = null, myProperties = [], activeFilter = '', pendingFile = null, pendingFileData = null, toastTimer = null;
+
+// ═══ BOOT ═════════════════════════════════════════════════════════════════════
+(function boot() {
+  applyBranding();
+  buildColorSwatches();
+  const url = localStorage.getItem('flip_script_url');
+  if (!url) document.getElementById('no-url-warning').style.display = 'block';
+  document.getElementById('login-pin').addEventListener('keyup', e => { if(e.key==='Enter') doLogin(); });
+  document.getElementById('login-name').addEventListener('keyup', e => { if(e.key==='Enter') document.getElementById('login-pin').focus(); });
+  document.getElementById('inp-date').value = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  // Live preview
+  document.getElementById('brand-name').addEventListener('input', e => { document.getElementById('preview-biz-name').textContent = e.target.value || 'Business Name'; });
+  document.getElementById('brand-tagline').addEventListener('input', e => { document.getElementById('preview-tagline').textContent = e.target.value || 'Subtitle'; });
+  document.getElementById('brand-color-custom').addEventListener('input', e => { setPreviewColor(e.target.value); });
+})();
+
+// ═══ BRANDING ════════════════════════════════════════════════════════════════
+function applyBranding() {
+  const b = branding;
+  // CSS vars
+  const r = document.documentElement.style;
+  r.setProperty('--brand-primary', b.color);
+  r.setProperty('--brand-dark', shadeColor(b.color, -20));
+  r.setProperty('--brand-mid', shadeColor(b.color, 20));
+  r.setProperty('--brand-light', hexToLight(b.color));
+  // Text
+  const els = ['login-biz-name','header-biz'];
+  els.forEach(id => { const el=document.getElementById(id); if(el) el.textContent = b.name; });
+  const tags = ['login-tagline','header-sub'];
+  tags.forEach(id => { const el=document.getElementById(id); if(el) el.textContent = b.tagline; });
+  // Admin fields
+  const bn = document.getElementById('brand-name'); if(bn) bn.value = b.name;
+  const bt = document.getElementById('brand-tagline'); if(bt) bt.value = b.tagline;
+  const bc = document.getElementById('brand-color-custom'); if(bc) bc.value = b.color;
+  const pbn = document.getElementById('preview-biz-name'); if(pbn) pbn.textContent = b.name;
+  const pt = document.getElementById('preview-tagline'); if(pt) pt.textContent = b.tagline;
+  const pp = document.getElementById('brand-preview'); if(pp) pp.style.background = b.color;
+  document.title = b.name + ' — Expenses';
+}
+
+function buildColorSwatches() {
+  const container = document.getElementById('color-swatches');
+  if (!container) return;
+  container.innerHTML = COLOR_PRESETS.map(c => `
+    <div class="color-swatch ${branding.color===c.value?'active':''}" style="background:${c.value}" title="${c.label}" onclick="pickColor('${c.value}', this)"></div>
+  `).join('');
+}
+
+function pickColor(hex, el) {
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('brand-color-custom').value = hex;
+  setPreviewColor(hex);
+}
+
+function setPreviewColor(hex) {
+  document.getElementById('brand-preview').style.background = hex;
+}
+
+function saveBranding() {
+  branding.name    = document.getElementById('brand-name').value.trim() || 'Asymmetric Acquisitions';
+  branding.tagline = document.getElementById('brand-tagline').value.trim() || 'Expense Tracker';
+  branding.color   = document.getElementById('brand-color-custom').value;
+  localStorage.setItem('flip_branding', JSON.stringify(branding));
+  applyBranding();
+  buildColorSwatches();
+  showToast('Branding saved', 'success');
+}
+
+function shadeColor(hex, pct) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.min(255, Math.max(0, (n>>16) + Math.round(2.55*pct)));
+  const g = Math.min(255, Math.max(0, ((n>>8)&0xff) + Math.round(2.55*pct)));
+  const b = Math.min(255, Math.max(0, (n&0xff) + Math.round(2.55*pct)));
+  return '#' + [r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+
+function hexToLight(hex) {
+  const n = parseInt(hex.slice(1),16);
+  const r = (n>>16), g = ((n>>8)&0xff), b = (n&0xff);
+  return `rgba(${r},${g},${b},0.10)`;
+}
+
+// ═══ LOGIN / LOGOUT ═══════════════════════════════════════════════════════════
+async function doLogin() {
+  const nameVal = document.getElementById('login-name').value.trim();
+  const pinVal  = document.getElementById('login-pin').value.trim();
+  if (!nameVal || !pinVal) { setLoginError('Enter your name and PIN'); return; }
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div style="width:18px;height:18px;border:2px solid rgba(255,255,255,.4);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;"></div> Signing in...';
+  setLoginError('');
+  const url = localStorage.getItem('flip_script_url');
+  if (url) {
+    try {
+      const res = await fetch(url + '?action=getUsers');
+      const json = await res.json();
+      if (json.users) { users = json.users; localStorage.setItem('flip_users', JSON.stringify(users)); }
+      if (json.properties) { properties = json.properties; localStorage.setItem('flip_properties', JSON.stringify(properties)); }
+      if (json.branding) { branding = json.branding; localStorage.setItem('flip_branding', JSON.stringify(branding)); applyBranding(); }
+    } catch(e) {}
+  }
+  const user = users.find(u => u.name.toLowerCase()===nameVal.toLowerCase() && u.pin===pinVal);
+  btn.disabled = false;
+  btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Sign in';
+  if (!user) { setLoginError('Name or PIN not recognized'); return; }
+  currentUser = user;
+  myProperties = user.role === 'admin' ? Object.keys(properties) : (user.properties || []);
+  launchApp();
+}
+
+function setLoginError(m) { document.getElementById('login-error').textContent = m; }
+
+function launchApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-shell').classList.add('visible');
+  document.getElementById('header-avatar').textContent = currentUser.name.charAt(0).toUpperCase();
+  document.getElementById('header-name').textContent = currentUser.name;
+  const rb = document.getElementById('header-role');
+  rb.textContent = currentUser.role;
+  rb.className = 'role-badge ' + (currentUser.role==='admin' ? 'role-admin' : 'role-user');
+  if (currentUser.role === 'admin') {
+    document.getElementById('tbtn-admin').style.display = 'flex';
+    const su = localStorage.getItem('flip_script_url');
+    if (!su) document.getElementById('admin-setup-banner').style.display = 'block';
+    else document.getElementById('script-url-input').value = su;
+    buildPropChecks();
+    renderUserList();
+    renderPropList();
+    renderResetUserSel();
+  }
+  // Property selects
+  const ps = document.getElementById('sel-property');
+  ps.innerHTML = '<option value="">Select property...</option>';
+  myProperties.forEach(p => { const o=document.createElement('option'); o.value=p; o.textContent=p; ps.appendChild(o); });
+  const ss = document.getElementById('sow-prop-sel');
+  ss.innerHTML = '';
+  myProperties.forEach(p => { const o=document.createElement('option'); o.value=p; o.textContent=p; ss.appendChild(o); });
+  buildFilterChips();
+  showTab('log');
+  if (myProperties.length > 0) renderSOW();
+}
+
+function doLogout() {
+  if (!confirm('Sign out?')) return;
+  currentUser = null; myProperties = [];
+  document.getElementById('app-shell').classList.remove('visible');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-name').value = '';
+  document.getElementById('login-pin').value = '';
+  setLoginError('');
+}
+
+// ═══ TABS ═════════════════════════════════════════════════════════════════════
+function showTab(n) {
+  ['log','expenses','sow','admin'].forEach(t => {
+    document.getElementById('page-'+t).classList.remove('active');
+    const b=document.getElementById('tbtn-'+t); if(b) b.classList.remove('active');
+  });
+  document.getElementById('page-'+n).classList.add('active');
+  const b=document.getElementById('tbtn-'+n); if(b) b.classList.add('active');
+  if(n==='expenses') renderExpenses();
+  if(n==='sow') renderSOW();
+  if(n==='admin') { renderUserList(); renderPropList(); renderResetUserSel(); }
+}
+
+// ═══ LOG EXPENSE ══════════════════════════════════════════════════════════════
+function updateSOWItems() {
+  const prop = document.getElementById('sel-property').value;
+  const sel  = document.getElementById('sel-sow');
+  sel.innerHTML = '<option value="">Select line item...</option>';
+  if (!prop) { sel.innerHTML = '<option value="">Select property first...</option>'; return; }
+  const items = properties[prop]?.items || [];
+  // Group by phase
+  const phases = {};
+  items.forEach(item => {
+    const ph = item.phase || 'Other';
+    if (!phases[ph]) phases[ph] = [];
+    phases[ph].push(item);
+  });
+  Object.entries(phases).forEach(([phase, phItems]) => {
+    const og = document.createElement('optgroup');
+    og.label = phase;
+    phItems.forEach(item => {
+      const o = document.createElement('option');
+      o.value = item.name;
+      o.textContent = (item.code ? item.code + ' · ' : '') + item.name;
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  });
+}
+
+function handleFile(input) {
+  if (!input.files?.[0]) return;
+  const file = input.files[0];
+  if (file.size > 10*1024*1024) { showToast('File too large (max 10 MB)','error'); return; }
+  pendingFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    pendingFileData = e.target.result;
+    const thumb = document.getElementById('receipt-thumb');
+    thumb.innerHTML = file.type.startsWith('image/') ? `<img src="${pendingFileData}" alt="receipt" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" />` : '📄';
+    document.getElementById('receipt-fname').textContent = file.name;
+    document.getElementById('receipt-fsize').textContent = fmtSize(file.size);
+    document.getElementById('upload-zone').style.display = 'none';
+    document.getElementById('receipt-preview').style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearReceipt() {
+  pendingFile = null; pendingFileData = null;
+  document.getElementById('file-inp').value = '';
+  document.getElementById('upload-zone').style.display = 'block';
+  document.getElementById('receipt-preview').style.display = 'none';
+}
+
+async function submitExpense() {
+  const property = document.getElementById('sel-property').value;
+  const sow      = document.getElementById('sel-sow').value;
+  const vendor   = document.getElementById('inp-vendor').value.trim();
+  const amount   = parseFloat(document.getElementById('inp-amount').value);
+  const notes    = document.getElementById('inp-notes').value.trim();
+  if (!property||!sow||!vendor||isNaN(amount)||amount<=0) { showToast('Fill in property, SOW item, vendor, and amount','error'); return; }
+  const btn = document.getElementById('submit-btn');
+  btn.disabled=true; btn.innerHTML='<div class="spinner"></div> Saving...';
+  const expense = { id:Date.now(), date:new Date().toISOString().slice(0,10), property, sow, vendor, amount:parseFloat(amount.toFixed(2)), notes, logged_by:currentUser.name, receipt_name:pendingFile?pendingFile.name:'', receipt_url:'' };
+  const scriptUrl = localStorage.getItem('flip_script_url');
+  if (scriptUrl) {
+    try {
+      const payload = { action:'logExpense', ...expense };
+      if (pendingFileData && pendingFile) { payload.receipt_data=pendingFileData; payload.receipt_mime=pendingFile.type||'application/octet-stream'; }
+      const res = await fetch(scriptUrl, { method:'POST', body:JSON.stringify(payload) });
+      const json = await res.json();
+      if (json.status==='ok') { expense.receipt_url=json.receipt_url||''; showToast('✓ Logged to Google Sheets','success'); }
+      else showToast('Saved locally · Sheet error','error');
+    } catch(e) { showToast('Saved locally · Network error','error'); }
+  } else { showToast('Saved locally (no sheet URL set)','success'); }
+  expenses.unshift(expense); localStorage.setItem('flip_expenses', JSON.stringify(expenses));
+  document.getElementById('sel-property').value=''; document.getElementById('sel-sow').innerHTML='<option value="">Select property first...</option>';
+  document.getElementById('inp-vendor').value=''; document.getElementById('inp-amount').value=''; document.getElementById('inp-notes').value='';
+  clearReceipt();
+  btn.disabled=false; btn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg> Log expense';
+}
+
+// ═══ EXPENSES ════════════════════════════════════════════════════════════════
+function buildFilterChips() {
+  const bar = document.getElementById('filter-bar');
+  bar.innerHTML = `<button class="filter-chip active" onclick="setFilter(this,'')">All</button>`;
+  myProperties.forEach(p => { const s=p.split('—')[0].trim(); bar.innerHTML+=`<button class="filter-chip" onclick="setFilter(this,'${p}')">${s}</button>`; });
+}
+
+function setFilter(el, val) {
+  activeFilter=val;
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderExpenses();
+}
+
+function renderExpenses() {
+  const vis = new Set(myProperties);
+  let list = expenses.filter(e=>vis.has(e.property));
+  if (activeFilter) list=list.filter(e=>e.property===activeFilter);
+  const c=document.getElementById('expense-list');
+  if(list.length===0){c.innerHTML=`<div class="empty-state"><div class="empty-icon">🧾</div><p>No expenses yet.</p></div>`;return;}
+  c.innerHTML=list.map(e=>`
+    <div class="expense-card">
+      <div class="expense-dot">🏠</div>
+      <div class="expense-body">
+        <div class="expense-top"><div class="expense-vendor">${e.vendor}</div><div class="expense-amount">$${e.amount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
+        <div class="expense-tags">
+          <span class="tag tag-prop">${e.property.split('—')[0].trim()}</span>
+          <span class="tag tag-sow">${e.sow}</span>
+          ${currentUser?.role==='admin'&&e.logged_by?`<span class="tag tag-user">👤 ${e.logged_by}</span>`:''}
+          ${e.receipt_url?`<a class="tag tag-receipt" href="${e.receipt_url}" target="_blank">📎 Receipt</a>`:e.receipt_name?'<span class="tag tag-receipt">📎 Receipt</span>':''}
+        </div>
+        ${e.notes?`<div class="expense-notes">${e.notes}</div>`:''}
+        <div class="expense-date">${e.date}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ═══ SOW ══════════════════════════════════════════════════════════════════════
+function renderSOW() {
+  const sel=document.getElementById('sow-prop-sel'); if(!sel||!sel.value) return;
+  const prop=sel.value, data=properties[prop]; if(!data) return;
+  const propExp=expenses.filter(e=>e.property===prop);
+  const totalSpent=propExp.reduce((s,e)=>s+e.amount,0);
+  const pct=data.budget>0?Math.round((totalSpent/data.budget)*100):0;
+  const rem=data.budget-totalSpent;
+  document.getElementById('sow-stats').innerHTML=`
+    <div class="stat-tile"><div class="stl">Reno Budget</div><div class="stv">$${data.budget.toLocaleString()}</div><div class="sts">${(data.items||[]).length} line items</div></div>
+    <div class="stat-tile"><div class="stl">Spent</div><div class="stv">$${Math.round(totalSpent).toLocaleString()}</div><div class="sts">${pct}% · $${Math.round(Math.abs(rem)).toLocaleString()} ${rem>=0?'remaining':'over'}</div><div class="prog-bar"><div class="prog-fill ${pct>100?'over':pct>85?'warn':''}" style="width:${Math.min(pct,100)}%"></div></div></div>`;
+  // Group items by phase, skip $0 budget items unless they have spend
+  const items = data.items || [];
+  const phases = {};
+  items.forEach(item => {
+    const ph = item.phase || 'Other';
+    if (!phases[ph]) phases[ph] = [];
+    const spent = propExp.filter(e=>e.sow===item.name).reduce((s,e)=>s+e.amount,0);
+    if (item.budget > 0 || spent > 0) phases[ph].push({...item, spent});
+  });
+  let html = '<div class="card-title">Line items by phase</div>';
+  Object.entries(phases).forEach(([phase, phItems]) => {
+    if (phItems.length === 0) return;
+    const phaseSpent = phItems.reduce((s,i)=>s+i.spent,0);
+    const phaseBudget = phItems.reduce((s,i)=>s+i.budget,0);
+    html += `<div style="font-size:11px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.06em;padding:12px 0 4px;">${phase}</div>`;
+    phItems.forEach(item => {
+      const ipct=item.budget>0?Math.min(Math.round((item.spent/item.budget)*100),100):0;
+      const cls=item.spent>item.budget&&item.budget>0?'over':item.spent>item.budget*.85&&item.budget>0?'warn':'ok';
+      html += `<div class="sow-line"><div class="sow-line-name"><span style="font-size:10px;color:var(--gray-400);margin-right:4px;">${item.code||''}</span>${item.name}</div><div class="mini-prog"><div class="mini-fill ${cls}" style="width:${ipct}%"></div></div><div class="sow-line-nums"><div class="sow-line-spent ${cls}">$${Math.round(item.spent).toLocaleString()}</div><div class="sow-line-budget">/ $${item.budget.toLocaleString()}</div></div></div>`;
+    });
+  });
+  document.getElementById('sow-lines').innerHTML = html;
+}
+
+// ═══ ADMIN — USERS ════════════════════════════════════════════════════════════
+function buildPropChecks() {
+  document.getElementById('new-prop-checks').innerHTML=Object.keys(properties).map(p=>`<label class="checkbox-item"><input type="checkbox" value="${p}" name="new-prop" /><span>${p}</span></label>`).join('');
+}
+
+function toggleForm(id) {
+  const f = document.getElementById(id);
+  f.classList.toggle('open');
+  if (id === 'add-prop-form' && f.classList.contains('open')) {
+    buildSOWPhaseForm();
+  }
+}
+
+async function addUser() {
+  const name=document.getElementById('new-name').value.trim();
+  const pin=document.getElementById('new-pin').value.trim();
+  const role=document.getElementById('new-role').value;
+  const props=Array.from(document.querySelectorAll('[name="new-prop"]:checked')).map(c=>c.value);
+  if(!name||!pin){showToast('Name and PIN required','error');return;}
+  if(!/^\d{4,8}$/.test(pin)){showToast('PIN must be 4–8 digits','error');return;}
+  if(users.find(u=>u.name.toLowerCase()===name.toLowerCase())){showToast('User already exists','error');return;}
+  if(role==='user'&&props.length===0){showToast('Assign at least one property','error');return;}
+  const nu={name,pin,role,properties:role==='admin'?Object.keys(properties):props};
+  users.push(nu); localStorage.setItem('flip_users',JSON.stringify(users));
+  const url=localStorage.getItem('flip_script_url');
+  if(url){try{await fetch(url,{method:'POST',body:JSON.stringify({action:'saveUser',user:nu})});}catch(e){}}
+  toggleForm('add-user-form'); renderUserList(); renderResetUserSel(); showToast(`${name} added`,'success');
+  document.getElementById('new-name').value=''; document.getElementById('new-pin').value='';
+}
+
+function removeUser(name) {
+  if(name===currentUser.name){showToast("Can't remove yourself",'error');return;}
+  if(!confirm(`Remove "${name}"?`))return;
+  users=users.filter(u=>u.name!==name); localStorage.setItem('flip_users',JSON.stringify(users));
+  renderUserList(); renderResetUserSel(); showToast(`${name} removed`,'success');
+}
+
+function renderUserList() {
+  const c=document.getElementById('user-list'); if(!c) return;
+  c.innerHTML=users.map(u=>`
+    <div class="user-row">
+      <div class="user-row-avatar">${u.name.charAt(0).toUpperCase()}</div>
+      <div class="user-row-body">
+        <div class="user-row-name">${u.name} <span class="role-badge ${u.role==='admin'?'role-admin':'role-user'}">${u.role}</span></div>
+        <div class="prop-tags">${(u.role==='admin'?['All properties']:u.properties).map(p=>`<span class="tag tag-sow" style="font-size:10px;">${p.split('—')[0].trim()}</span>`).join('')}</div>
+      </div>
+      ${u.name!==currentUser.name?`<button class="icon-btn" onclick="removeUser('${u.name}')" title="Remove">🗑️</button>`:''}
+    </div>`).join('');
+}
+
+// ═══ ADMIN — PIN RESET ════════════════════════════════════════════════════════
+function renderResetUserSel() {
+  const sel=document.getElementById('reset-user-sel'); if(!sel) return;
+  sel.innerHTML=users.filter(u=>u.name!==currentUser.name).map(u=>`<option value="${u.name}">${u.name}</option>`).join('');
+}
+
+async function resetPIN() {
+  const name=document.getElementById('reset-user-sel').value;
+  const pin=document.getElementById('reset-new-pin').value.trim();
+  if(!pin||!/^\d{4,8}$/.test(pin)){showToast('PIN must be 4–8 digits','error');return;}
+  const user=users.find(u=>u.name===name);
+  if(!user){showToast('User not found','error');return;}
+  user.pin=pin; localStorage.setItem('flip_users',JSON.stringify(users));
+  const url=localStorage.getItem('flip_script_url');
+  if(url){try{await fetch(url,{method:'POST',body:JSON.stringify({action:'saveUser',user})});}catch(e){}}
+  document.getElementById('reset-new-pin').value='';
+  showToast(`PIN reset for ${name}`,'success');
+}
+
+function openPinReset() {
+  const nameVal=document.getElementById('login-name').value.trim();
+  document.getElementById('reset-name-display').value=nameVal||'(not entered)';
+  document.getElementById('pin-reset-modal').classList.add('open');
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ═══ ADMIN — PROPERTIES ═══════════════════════════════════════════════════════
+function buildSOWPhaseForm() {
+  const phases = {};
+  SOW_TEMPLATE.forEach(t => {
+    if (!phases[t.phase]) phases[t.phase] = [];
+    phases[t.phase].push(t);
+  });
+  let html = '';
+  Object.entries(phases).forEach(([phase, items]) => {
+    html += `<div style="font-size:11px;font-weight:600;color:var(--brand-dark);text-transform:uppercase;letter-spacing:.06em;padding:10px 0 6px;border-top:1px solid #B5D4F4;margin-top:4px;">${phase}</div>`;
+    items.forEach(item => {
+      html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
+        <span style="font-size:11px;color:var(--gray-400);width:36px;flex-shrink:0;">${item.code}</span>
+        <span style="flex:1;font-size:13px;">${item.name}</span>
+        <span style="font-size:12px;color:var(--gray-400);">$</span>
+        <input type="number" data-sow="${item.name}" data-code="${item.code}" data-phase="${item.phase}" placeholder="0" min="0" style="width:90px;padding:6px 8px;font-size:13px;border:1.5px solid var(--gray-200);border-radius:6px;text-align:right;" />
+      </div>`;
+    });
+  });
+  document.getElementById('sow-phase-list').innerHTML = html;
+}
+
+function addProperty() {
+  const name   = document.getElementById('new-prop-name').value.trim();
+  const budget = parseFloat(document.getElementById('new-prop-budget').value) || 0;
+  const purchase = parseFloat(document.getElementById('new-prop-purchase').value) || 0;
+  const arv    = parseFloat(document.getElementById('new-prop-arv').value) || 0;
+  if (!name) { showToast('Property name required', 'error'); return; }
+  if (properties[name]) { showToast('Property already exists', 'error'); return; }
+
+  // Collect SOW budgets from form
+  const sowInputs = document.querySelectorAll('[data-sow]');
+  const items = [];
+  sowInputs.forEach(inp => {
+    items.push({
+      name: inp.dataset.sow,
+      code: inp.dataset.code,
+      phase: inp.dataset.phase,
+      budget: parseFloat(inp.value) || 0
+    });
+  });
+
+  // Auto-calc contingency at 10% if field is 0
+  const contItem = items.find(i => i.code === 'CONT');
+  if (contItem && contItem.budget === 0) {
+    const subTotal = items.filter(i=>i.code!=='CONT').reduce((s,i)=>s+i.budget,0);
+    contItem.budget = Math.round(subTotal * 0.1);
+  }
+
+  properties[name] = { budget, purchase, arv, items };
+  localStorage.setItem('flip_properties', JSON.stringify(properties));
+  buildPropChecks(); renderPropList();
+  if (currentUser.role === 'admin') myProperties = Object.keys(properties);
+  // Refresh property dropdowns
+  const ps = document.getElementById('sel-property');
+  if (ps) { ps.innerHTML='<option value="">Select property...</option>'; myProperties.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;ps.appendChild(o);}); }
+  const ss = document.getElementById('sow-prop-sel');
+  if (ss) { ss.innerHTML=''; myProperties.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;ss.appendChild(o);}); }
+  buildFilterChips();
+  document.getElementById('new-prop-name').value = '';
+  document.getElementById('new-prop-budget').value = '';
+  document.getElementById('new-prop-purchase').value = '';
+  document.getElementById('new-prop-arv').value = '';
+  document.getElementById('sow-phase-list').innerHTML = '';
+  toggleForm('add-prop-form');
+  showToast(`${name} added`, 'success');
+}
+
+function removeProperty(name) {
+  if(!confirm(`Remove "${name}" and all its SOW data?`))return;
+  delete properties[name]; localStorage.setItem('flip_properties',JSON.stringify(properties));
+  buildPropChecks(); renderPropList();
+  if(currentUser.role==='admin') myProperties=Object.keys(properties);
+  showToast(`${name} removed`,'success');
+}
+
+function renderPropList() {
+  const c=document.getElementById('prop-list'); if(!c) return;
+  c.innerHTML=Object.entries(properties).map(([name,data])=>`
+    <div class="prop-row">
+      <div style="flex:1;">
+        <div class="prop-row-name">${name}</div>
+        <div class="prop-row-budget">$${data.budget.toLocaleString()} budget · ${data.items.length} line items</div>
+      </div>
+      <button class="icon-btn" onclick="removeProperty('${name.replace(/'/g,"\\'")}')">🗑️</button>
+    </div>`).join('');
+}
+
+// ═══ SCRIPT URL ═══════════════════════════════════════════════════════════════
+function saveScriptUrl() {
+  const url=document.getElementById('script-url-input').value.trim();
+  if(!url.startsWith('https://script.google.com')){showToast('Paste a valid Apps Script URL','error');return;}
+  localStorage.setItem('flip_script_url',url);
+  document.getElementById('admin-setup-banner').style.display='none';
+  document.getElementById('no-url-warning').style.display='none';
+  showToast('Script URL saved','success');
+}
+
+// ═══ UTILS ════════════════════════════════════════════════════════════════════
+function fmtSize(b){if(b<1024)return b+' B';if(b<1048576)return Math.round(b/1024)+' KB';return (b/1048576).toFixed(1)+' MB';}
+let toastT;
+function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast ${type} show`;clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3500);}
+</script>
+</body>
+</html>
