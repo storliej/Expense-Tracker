@@ -235,6 +235,10 @@
     <h2>Sign in</h2>
     <div class="login-field"><label>Your name</label><input type="text" id="login-name" placeholder="e.g. Jeff" autocomplete="off" autocapitalize="words" /></div>
     <div class="login-field"><label>PIN</label><input type="password" id="login-pin" class="pin-input" placeholder="••••" maxlength="8" inputmode="numeric" /></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <input type="checkbox" id="remember-me" style="width:16px;height:16px;accent-color:var(--brand-primary);flex-shrink:0;" />
+      <label for="remember-me" style="font-size:13px;color:var(--gray-600);cursor:pointer;">Keep me signed in</label>
+    </div>
     <button class="login-btn" id="login-btn" onclick="doLogin()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
       Sign in
@@ -319,7 +323,9 @@
 
     <!-- ADMIN -->
     <div id="page-admin" class="page">
-      <div class="info-banner">👋 Admin view — you see all properties and expenses. Manage users, properties, and branding below.</div>
+      <div class="info-banner">👋 Admin view — you see all properties and expenses. Manage users, properties, and branding below.
+        <div style="margin-top:10px;"><button class="submit-btn btn-sm" onclick="syncEverythingToSheet()" style="background:var(--green);display:inline-flex;">☁️ Sync everything to sheet</button></div>
+      </div>
 
       <!-- SCRIPT URL -->
       <div class="warn-banner" id="admin-setup-banner" style="display:none">
@@ -550,6 +556,21 @@ let currentUser = null, myProperties = [], activeFilter = '', pendingFile = null
   document.getElementById('brand-name').addEventListener('input', e => { document.getElementById('preview-biz-name').textContent = e.target.value || 'Business Name'; });
   document.getElementById('brand-tagline').addEventListener('input', e => { document.getElementById('preview-tagline').textContent = e.target.value || 'Subtitle'; });
   document.getElementById('brand-color-custom').addEventListener('input', e => { setPreviewColor(e.target.value); });
+  // Auto-login from saved session
+  const savedSession = localStorage.getItem('flip_session');
+  if (savedSession) {
+    try {
+      const s = JSON.parse(savedSession);
+      const user = users.find(u => u.name === s.name && u.pin === s.pin);
+      if (user) {
+        currentUser = user;
+        myProperties = user.role === 'admin' ? Object.keys(properties) : (user.properties || []);
+        document.getElementById('login-screen').style.display = 'none';
+        launchApp();
+        return;
+      }
+    } catch(e) { localStorage.removeItem('flip_session'); }
+  }
 })();
 
 // ═══ BRANDING ════════════════════════════════════════════════════════════════
@@ -595,14 +616,20 @@ function setPreviewColor(hex) {
   document.getElementById('brand-preview').style.background = hex;
 }
 
-function saveBranding() {
+async function saveBranding() {
   branding.name    = document.getElementById('brand-name').value.trim() || 'Asymmetric Acquisitions';
   branding.tagline = document.getElementById('brand-tagline').value.trim() || 'Expense Tracker';
   branding.color   = document.getElementById('brand-color-custom').value;
   localStorage.setItem('flip_branding', JSON.stringify(branding));
   applyBranding();
   buildColorSwatches();
-  showToast('Branding saved', 'success');
+  const url = localStorage.getItem('flip_script_url');
+  if (url) {
+    try {
+      await fetch(url, { method:'POST', body: JSON.stringify({ action:'saveBranding', branding }) });
+      showToast('Branding saved & synced', 'success');
+    } catch(e) { showToast('Branding saved locally', 'success'); }
+  } else { showToast('Branding saved', 'success'); }
 }
 
 function shadeColor(hex, pct) {
@@ -644,6 +671,10 @@ async function doLogin() {
   if (!user) { setLoginError('Name or PIN not recognized'); return; }
   currentUser = user;
   myProperties = user.role === 'admin' ? Object.keys(properties) : (user.properties || []);
+  // Remember me
+  if (document.getElementById('remember-me').checked) {
+    localStorage.setItem('flip_session', JSON.stringify({ name: user.name, pin: user.pin }));
+  }
   launchApp();
 }
 
@@ -681,6 +712,7 @@ function launchApp() {
 
 function doLogout() {
   if (!confirm('Sign out?')) return;
+  localStorage.removeItem('flip_session');
   currentUser = null; myProperties = [];
   document.getElementById('app-shell').classList.remove('visible');
   document.getElementById('login-screen').style.display = 'flex';
@@ -982,6 +1014,9 @@ function addProperty() {
 
   properties[name] = { budget, purchase, arv, items };
   localStorage.setItem('flip_properties', JSON.stringify(properties));
+  // Sync to sheet
+  const url = localStorage.getItem('flip_script_url');
+  if (url) { try { await fetch(url, { method:'POST', body: JSON.stringify({ action:'saveProperties', properties }) }); } catch(e) {} }
   buildPropChecks(); renderPropList();
   if (currentUser.role === 'admin') myProperties = Object.keys(properties);
   // Refresh property dropdowns
@@ -1002,6 +1037,8 @@ function addProperty() {
 function removeProperty(name) {
   if(!confirm(`Remove "${name}" and all its SOW data?`))return;
   delete properties[name]; localStorage.setItem('flip_properties',JSON.stringify(properties));
+  const url = localStorage.getItem('flip_script_url');
+  if (url) { try { fetch(url, { method:'POST', body: JSON.stringify({ action:'saveProperties', properties }) }); } catch(e) {} }
   buildPropChecks(); renderPropList();
   if(currentUser.role==='admin') myProperties=Object.keys(properties);
   showToast(`${name} removed`,'success');
@@ -1020,6 +1057,21 @@ function renderPropList() {
 }
 
 // ═══ SCRIPT URL ═══════════════════════════════════════════════════════════════
+async function syncEverythingToSheet() {
+  const url = localStorage.getItem('flip_script_url');
+  if (!url) { showToast('No sheet URL set — go to Connect Google Sheet', 'error'); return; }
+  showToast('Syncing...', 'success');
+  try {
+    await fetch(url, { method:'POST', body: JSON.stringify({
+      action: 'saveAllSettings',
+      users,
+      branding,
+      properties
+    })});
+    showToast('✓ Everything synced to sheet', 'success');
+  } catch(e) { showToast('Sync failed — check your URL', 'error'); }
+}
+
 function saveScriptUrl() {
   const url=document.getElementById('script-url-input').value.trim();
   if(!url.startsWith('https://script.google.com')){showToast('Paste a valid Apps Script URL','error');return;}
