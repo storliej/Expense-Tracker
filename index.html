@@ -1014,9 +1014,9 @@ function addProperty() {
 
   properties[name] = { budget, purchase, arv, items };
   localStorage.setItem('flip_properties', JSON.stringify(properties));
-  // Sync to sheet
+  // Sync to sheet (fire and forget)
   const url = localStorage.getItem('flip_script_url');
-  if (url) { try { await fetch(url, { method:'POST', body: JSON.stringify({ action:'saveProperties', properties }) }); } catch(e) {} }
+  if (url) { try { fetch(url, { method:'POST', body: JSON.stringify({ action:'saveProperties', properties }) }); } catch(e) {} }
   buildPropChecks(); renderPropList();
   if (currentUser.role === 'admin') myProperties = Object.keys(properties);
   // Refresh property dropdowns
