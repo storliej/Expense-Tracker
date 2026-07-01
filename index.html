@@ -747,19 +747,30 @@ function updateSOWItems() {
   sel.innerHTML = '<option value="">Select line item...</option>';
   if (!prop) { sel.innerHTML = '<option value="">Select property first...</option>'; return; }
   const items = properties[prop]?.items || [];
-  // Group by phase
+  // Only show items with a budget set, grouped by phase
   const phases = {};
   items.forEach(item => {
+    if (!item.budget || item.budget <= 0) return; // skip $0 items
     const ph = item.phase || 'Other';
     if (!phases[ph]) phases[ph] = [];
     phases[ph].push(item);
   });
+  if (Object.keys(phases).length === 0) {
+    // No budgeted items yet — show all so user can still log
+    items.forEach(item => {
+      const ph = item.phase || 'Other';
+      if (!phases[ph]) phases[ph] = [];
+      phases[ph].push(item);
+    });
+  }
   Object.entries(phases).forEach(([phase, phItems]) => {
     const og = document.createElement('optgroup');
     og.label = phase;
     phItems.forEach(item => {
       const o = document.createElement('option');
       o.value = item.name;
+      o.dataset.code = item.code || '';
+      o.dataset.phase = item.phase || '';
       o.textContent = (item.code ? item.code + ' · ' : '') + item.name;
       og.appendChild(o);
     });
@@ -801,7 +812,12 @@ async function submitExpense() {
   if (!property||!sow||!vendor||isNaN(amount)||amount<=0) { showToast('Fill in property, SOW item, vendor, and amount','error'); return; }
   const btn = document.getElementById('submit-btn');
   btn.disabled=true; btn.innerHTML='<div class="spinner"></div> Saving...';
-  const expense = { id:Date.now(), date:new Date().toISOString().slice(0,10), property, sow, vendor, amount:parseFloat(amount.toFixed(2)), notes, logged_by:currentUser.name, receipt_name:pendingFile?pendingFile.name:'', receipt_url:'' };
+  // Get code and phase from selected SOW option
+  const sowSel = document.getElementById('sel-sow');
+  const selectedOpt = sowSel.options[sowSel.selectedIndex];
+  const sowCode  = selectedOpt?.dataset?.code  || '';
+  const sowPhase = selectedOpt?.dataset?.phase || '';
+  const expense = { id:Date.now(), date:new Date().toISOString().slice(0,10), property, sow, code:sowCode, phase:sowPhase, vendor, amount:parseFloat(amount.toFixed(2)), notes, logged_by:currentUser.name, receipt_name:pendingFile?pendingFile.name:'', receipt_url:'' };
   const scriptUrl = SCRIPT_URL;
   if (scriptUrl) {
     try {
