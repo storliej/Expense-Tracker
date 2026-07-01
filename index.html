@@ -1050,10 +1050,61 @@ function renderPropList() {
     <div class="prop-row">
       <div style="flex:1;">
         <div class="prop-row-name">${name}</div>
-        <div class="prop-row-budget">$${data.budget.toLocaleString()} budget · ${data.items.length} line items</div>
+        <div class="prop-row-budget">$${data.budget.toLocaleString()} budget · ${(data.items||[]).length} line items</div>
       </div>
-      <button class="icon-btn" onclick="removeProperty('${name.replace(/'/g,"\\'")}')">🗑️</button>
+      <button class="icon-btn" onclick="openEditProperty('${name.replace(/'/g,"\'")}')" title="Edit" style="margin-right:4px;">✏️</button>
+      <button class="icon-btn" onclick="removeProperty('${name.replace(/'/g,"\'")}')" title="Remove">🗑️</button>
     </div>`).join('');
+}
+
+function openEditProperty(name) {
+  const data = properties[name];
+  if (!data) return;
+  document.getElementById('edit-prop-title').textContent = name;
+  document.getElementById('edit-prop-name').value = name;
+  document.getElementById('edit-prop-budget').value = data.budget || 0;
+  document.getElementById('edit-prop-purchase').value = data.purchase || 0;
+  document.getElementById('edit-prop-arv').value = data.arv || 0;
+  const container = document.getElementById('edit-sow-list');
+  container.innerHTML = '';
+  (data.items || []).forEach(item => {
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:7px;';
+    div.innerHTML = `<span style="font-size:11px;color:var(--gray-400);width:36px;flex-shrink:0;">${item.code||''}</span><span style="flex:1;font-size:13px;">${item.name}</span><span style="font-size:12px;color:var(--gray-400);">$</span><input type="number" data-sow="${item.name}" value="${item.budget||0}" min="0" style="width:90px;padding:6px 8px;font-size:13px;border:1.5px solid var(--gray-200);border-radius:6px;text-align:right;" />`;
+    container.appendChild(div);
+  });
+  document.getElementById('edit-prop-modal').classList.add('open');
+}
+
+async function saveEditProperty() {
+  const oldName  = document.getElementById('edit-prop-title').textContent;
+  const newName  = document.getElementById('edit-prop-name').value.trim();
+  const budget   = parseFloat(document.getElementById('edit-prop-budget').value) || 0;
+  const purchase = parseFloat(document.getElementById('edit-prop-purchase').value) || 0;
+  const arv      = parseFloat(document.getElementById('edit-prop-arv').value) || 0;
+  if (!newName) { showToast('Property name required', 'error'); return; }
+  const items = (properties[oldName]?.items || []).map(item => {
+    const inp = document.querySelector(`#edit-sow-list [data-sow="${item.name}"]`);
+    return { ...item, budget: inp ? parseFloat(inp.value)||0 : item.budget };
+  });
+  if (newName !== oldName) {
+    delete properties[oldName];
+    users.forEach(u => { if(u.properties){const i=u.properties.indexOf(oldName);if(i>-1)u.properties[i]=newName;} });
+    localStorage.setItem('flip_users', JSON.stringify(users));
+  }
+  properties[newName] = { budget, purchase, arv, items };
+  localStorage.setItem('flip_properties', JSON.stringify(properties));
+  const url = localStorage.getItem('flip_script_url');
+  if (url) { try { fetch(url, { method:'POST', body: JSON.stringify({ action:'saveProperties', properties }) }); } catch(e) {} }
+  if (currentUser.role === 'admin') myProperties = Object.keys(properties);
+  buildPropChecks(); renderPropList(); renderUserList();
+  const ps = document.getElementById('sel-property');
+  if (ps) { ps.innerHTML='<option value="">Select property...</option>'; myProperties.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;ps.appendChild(o);}); }
+  const ss = document.getElementById('sow-prop-sel');
+  if (ss) { ss.innerHTML=''; myProperties.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;ss.appendChild(o);}); }
+  buildFilterChips();
+  closeModal('edit-prop-modal');
+  showToast(`${newName} updated`, 'success');
 }
 
 // ═══ SCRIPT URL ═══════════════════════════════════════════════════════════════
@@ -1086,5 +1137,24 @@ function fmtSize(b){if(b<1024)return b+' B';if(b<1048576)return Math.round(b/102
 let toastT;
 function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast ${type} show`;clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3500);}
 </script>
+<!-- EDIT PROPERTY MODAL -->
+<div class="modal-overlay" id="edit-prop-modal">
+  <div class="modal" style="max-height:85vh;overflow-y:auto;">
+    <div class="modal-title">✏️ Edit property</div>
+    <div style="font-size:12px;color:var(--gray-400);margin-bottom:16px;" id="edit-prop-title"></div>
+    <div class="field"><label class="field-label">Property name</label><input type="text" id="edit-prop-name" /></div>
+    <div class="row2">
+      <div class="field"><label class="field-label">Purchase price</label><input type="number" id="edit-prop-purchase" /></div>
+      <div class="field"><label class="field-label">Target ARV</label><input type="number" id="edit-prop-arv" /></div>
+    </div>
+    <div class="field"><label class="field-label">Total reno budget</label><input type="number" id="edit-prop-budget" /></div>
+    <div class="field"><label class="field-label">SOW line item budgets</label><div id="edit-sow-list"></div></div>
+    <div class="modal-actions">
+      <button class="submit-btn" onclick="saveEditProperty()" style="flex:1;">Save changes</button>
+      <button class="submit-btn btn-secondary" onclick="closeModal('edit-prop-modal')" style="flex:1;">Cancel</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
