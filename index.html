@@ -934,8 +934,65 @@ function renderUserList() {
         <div class="user-row-name">${u.name} <span class="role-badge ${u.role==='admin'?'role-admin':'role-user'}">${u.role}</span></div>
         <div class="prop-tags">${(u.role==='admin'?['All properties']:u.properties).map(p=>`<span class="tag tag-sow" style="font-size:10px;">${p.split('—')[0].trim()}</span>`).join('')}</div>
       </div>
-      ${u.name!==currentUser.name?`<button class="icon-btn" onclick="removeUser('${u.name}')" title="Remove">🗑️</button>`:''}
+      <div style="display:flex;gap:4px;">
+        <button class="icon-btn" onclick="openEditUser('${u.name}')" title="Edit">✏️</button>
+        ${u.name!==currentUser.name?`<button class="icon-btn" onclick="removeUser('${u.name}')" title="Remove">🗑️</button>`:''}
+      </div>
     </div>`).join('');
+}
+
+function openEditUser(name) {
+  const user = users.find(u => u.name === name);
+  if (!user) return;
+  document.getElementById('edit-user-orig-name').value = name;
+  document.getElementById('edit-user-name').value = user.name;
+  document.getElementById('edit-user-pin').value = user.pin;
+  document.getElementById('edit-user-role').value = user.role;
+  // Build property checkboxes
+  const container = document.getElementById('edit-user-props');
+  container.innerHTML = Object.keys(properties).map(p => `
+    <label class="checkbox-item">
+      <input type="checkbox" value="${p}" name="edit-prop" ${(user.properties||[]).includes(p)?'checked':''} />
+      <span>${p}</span>
+    </label>`).join('');
+  // Show/hide property section based on role
+  toggleEditUserProps();
+  document.getElementById('edit-user-modal').classList.add('open');
+}
+
+function toggleEditUserProps() {
+  const role = document.getElementById('edit-user-role').value;
+  document.getElementById('edit-user-props-section').style.display = role === 'admin' ? 'none' : 'block';
+}
+
+async function saveEditUser() {
+  const origName = document.getElementById('edit-user-orig-name').value;
+  const newName  = document.getElementById('edit-user-name').value.trim();
+  const pin      = document.getElementById('edit-user-pin').value.trim();
+  const role     = document.getElementById('edit-user-role').value;
+  const props    = Array.from(document.querySelectorAll('[name="edit-prop"]:checked')).map(c => c.value);
+  if (!newName) { showToast('Name required', 'error'); return; }
+  if (!pin || !/^\d{4,8}$/.test(pin)) { showToast('PIN must be 4–8 digits', 'error'); return; }
+  if (role === 'user' && props.length === 0) { showToast('Assign at least one property', 'error'); return; }
+  // Check for name conflict (ignore if same user)
+  if (newName !== origName && users.find(u => u.name.toLowerCase() === newName.toLowerCase())) {
+    showToast('A user with that name already exists', 'error'); return;
+  }
+  const idx = users.findIndex(u => u.name === origName);
+  if (idx === -1) { showToast('User not found', 'error'); return; }
+  users[idx] = { name: newName, pin, role, properties: role === 'admin' ? Object.keys(properties) : props };
+  // If editing current user, update currentUser too
+  if (origName === currentUser.name) {
+    currentUser = users[idx];
+    document.getElementById('header-avatar').textContent = newName.charAt(0).toUpperCase();
+    document.getElementById('header-name').textContent = newName;
+  }
+  localStorage.setItem('flip_users', JSON.stringify(users));
+  const url = localStorage.getItem('flip_script_url');
+  if (url) { try { await fetch(url, { method:'POST', body: JSON.stringify({ action:'saveUser', user: users[idx] }) }); } catch(e) {} }
+  renderUserList(); renderResetUserSel();
+  closeModal('edit-user-modal');
+  showToast(`${newName} updated`, 'success');
 }
 
 // ═══ ADMIN — PIN RESET ════════════════════════════════════════════════════════
@@ -1139,6 +1196,30 @@ function fmtSize(b){if(b<1024)return b+' B';if(b<1048576)return Math.round(b/102
 let toastT;
 function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast ${type} show`;clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3500);}
 </script>
+<!-- EDIT USER MODAL -->
+<div class="modal-overlay" id="edit-user-modal">
+  <div class="modal" style="max-height:85vh;overflow-y:auto;">
+    <div class="modal-title">✏️ Edit user</div>
+    <input type="hidden" id="edit-user-orig-name" />
+    <div class="field"><label class="field-label">Name <span>*</span></label><input type="text" id="edit-user-name" /></div>
+    <div class="field"><label class="field-label">PIN <span>*</span></label><input type="text" id="edit-user-pin" placeholder="4–8 digits" maxlength="8" inputmode="numeric" /></div>
+    <div class="field"><label class="field-label">Role</label>
+      <select id="edit-user-role" onchange="toggleEditUserProps()">
+        <option value="user">User (assigned properties only)</option>
+        <option value="admin">Admin (all properties)</option>
+      </select>
+    </div>
+    <div class="field" id="edit-user-props-section">
+      <label class="field-label">Assigned properties</label>
+      <div class="checkbox-group" id="edit-user-props"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="submit-btn" onclick="saveEditUser()" style="flex:1;">Save changes</button>
+      <button class="submit-btn btn-secondary" onclick="closeModal('edit-user-modal')" style="flex:1;">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- EDIT PROPERTY MODAL -->
 <div class="modal-overlay" id="edit-prop-modal">
   <div class="modal" style="max-height:85vh;overflow-y:auto;">
