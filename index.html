@@ -451,7 +451,11 @@ const COLOR_PRESETS = [
 
 const PROP_EMOJIS = { default:'🏠', co:'🏔️', stl:'🏡', build:'🏗️', tool:'🔨', key:'🔑' };
 
-// ═══ SOW TEMPLATE (from AA_Flip_Budget_Template.xlsx) ════════════════════════
+// ═══ CONSTANTS ════════════════════════════════════════════════════════════════
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzxuPcNlfXZcSb8omTMPe2liZm84d1OkdH68xtMSDMaYWVPj-S--YcGWIHbszg7oxDtZg/exec';
+
+// Auto-save it to localStorage so admin UI works too
+localStorage.setItem('flip_script_url', SCRIPT_URL);
 const SOW_TEMPLATE = [
   {phase:"Phase 1 · Soft Costs / Pre-Construction", code:"1010", name:"Permits & Plans"},
   {phase:"Phase 1 · Soft Costs / Pre-Construction", code:"1020", name:"Legal / Title"},
@@ -547,7 +551,7 @@ let currentUser = null, myProperties = [], activeFilter = '', pendingFile = null
 (function boot() {
   applyBranding();
   buildColorSwatches();
-  const url = localStorage.getItem('flip_script_url');
+  const url = SCRIPT_URL;
   if (!url) document.getElementById('no-url-warning').style.display = 'block';
   document.getElementById('login-pin').addEventListener('keyup', e => { if(e.key==='Enter') doLogin(); });
   document.getElementById('login-name').addEventListener('keyup', e => { if(e.key==='Enter') document.getElementById('login-pin').focus(); });
@@ -624,7 +628,7 @@ async function saveBranding() {
   localStorage.setItem('flip_branding', JSON.stringify(branding));
   applyBranding();
   buildColorSwatches();
-  const url = localStorage.getItem('flip_script_url');
+  const url = SCRIPT_URL;
   if (url) {
     try {
       await fetch(url, { method:'POST', body: JSON.stringify({ action:'saveBranding', branding }) });
@@ -656,7 +660,7 @@ async function doLogin() {
   btn.disabled = true;
   btn.innerHTML = '<div style="width:18px;height:18px;border:2px solid rgba(255,255,255,.4);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;"></div> Signing in...';
   setLoginError('');
-  const url = localStorage.getItem('flip_script_url');
+  const url = SCRIPT_URL;
   if (url) {
     try {
       const res = await fetch(url + '?action=getUsers');
@@ -692,7 +696,7 @@ function launchApp() {
   rb.className = 'role-badge ' + (currentUser.role==='admin' ? 'role-admin' : 'role-user');
   if (currentUser.role === 'admin') {
     document.getElementById('tbtn-admin').style.display = 'flex';
-    const su = localStorage.getItem('flip_script_url');
+    const su = SCRIPT_URL;
     if (!su) document.getElementById('admin-setup-banner').style.display = 'block';
     else document.getElementById('script-url-input').value = su;
     buildPropChecks();
@@ -798,7 +802,7 @@ async function submitExpense() {
   const btn = document.getElementById('submit-btn');
   btn.disabled=true; btn.innerHTML='<div class="spinner"></div> Saving...';
   const expense = { id:Date.now(), date:new Date().toISOString().slice(0,10), property, sow, vendor, amount:parseFloat(amount.toFixed(2)), notes, logged_by:currentUser.name, receipt_name:pendingFile?pendingFile.name:'', receipt_url:'' };
-  const scriptUrl = localStorage.getItem('flip_script_url');
+  const scriptUrl = SCRIPT_URL;
   if (scriptUrl) {
     try {
       const payload = { action:'logExpense', ...expense };
@@ -912,7 +916,7 @@ async function addUser() {
   if(role==='user'&&props.length===0){showToast('Assign at least one property','error');return;}
   const nu={name,pin,role,properties:role==='admin'?Object.keys(properties):props};
   users.push(nu); localStorage.setItem('flip_users',JSON.stringify(users));
-  const url=localStorage.getItem('flip_script_url');
+  const url=SCRIPT_URL;
   if(url){try{await fetch(url,{method:'POST',body:JSON.stringify({action:'saveUser',user:nu})});}catch(e){}}
   toggleForm('add-user-form'); renderUserList(); renderResetUserSel(); showToast(`${name} added`,'success');
   document.getElementById('new-name').value=''; document.getElementById('new-pin').value='';
@@ -988,7 +992,7 @@ async function saveEditUser() {
     document.getElementById('header-name').textContent = newName;
   }
   localStorage.setItem('flip_users', JSON.stringify(users));
-  const url = localStorage.getItem('flip_script_url');
+  const url = SCRIPT_URL;
   if (url) { try { await fetch(url, { method:'POST', body: JSON.stringify({ action:'saveUser', user: users[idx] }) }); } catch(e) {} }
   renderUserList(); renderResetUserSel();
   closeModal('edit-user-modal');
@@ -1008,7 +1012,7 @@ async function resetPIN() {
   const user=users.find(u=>u.name===name);
   if(!user){showToast('User not found','error');return;}
   user.pin=pin; localStorage.setItem('flip_users',JSON.stringify(users));
-  const url=localStorage.getItem('flip_script_url');
+  const url=SCRIPT_URL;
   if(url){try{await fetch(url,{method:'POST',body:JSON.stringify({action:'saveUser',user})});}catch(e){}}
   document.getElementById('reset-new-pin').value='';
   showToast(`PIN reset for ${name}`,'success');
@@ -1074,7 +1078,7 @@ function addProperty() {
   properties[name] = { budget, purchase, arv, items };
   localStorage.setItem('flip_properties', JSON.stringify(properties));
   // Sync to sheet (fire and forget)
-  const url = localStorage.getItem('flip_script_url');
+  const url = SCRIPT_URL;
   if (url) { try { fetch(url, { method:'POST', body: JSON.stringify({ action:'saveProperties', properties }) }); } catch(e) {} }
   buildPropChecks(); renderPropList();
   if (currentUser.role === 'admin') myProperties = Object.keys(properties);
@@ -1096,7 +1100,7 @@ function addProperty() {
 function removeProperty(name) {
   if(!confirm(`Remove "${name}" and all its SOW data?`))return;
   delete properties[name]; localStorage.setItem('flip_properties',JSON.stringify(properties));
-  const url = localStorage.getItem('flip_script_url');
+  const url = SCRIPT_URL;
   if (url) { try { fetch(url, { method:'POST', body: JSON.stringify({ action:'saveProperties', properties }) }); } catch(e) {} }
   buildPropChecks(); renderPropList();
   if(currentUser.role==='admin') myProperties=Object.keys(properties);
@@ -1116,9 +1120,22 @@ function renderPropList() {
     </div>`).join('');
 }
 
+function dedupeItems(items) {
+  // Keep only the first occurrence of each item name, preferring ones with a code
+  const seen = {};
+  const result = [];
+  // First pass: items with codes
+  items.forEach(item => { if (item.code && !seen[item.name]) { seen[item.name] = true; result.push(item); } });
+  // Second pass: items without codes that weren't already added
+  items.forEach(item => { if (!item.code && !seen[item.name]) { seen[item.name] = true; result.push(item); } });
+  return result;
+}
+
 function openEditProperty(name) {
   const data = properties[name];
   if (!data) return;
+  // Dedupe items before showing
+  const items = dedupeItems(data.items || []);
   document.getElementById('edit-prop-title').textContent = name;
   document.getElementById('edit-prop-name').value = name;
   document.getElementById('edit-prop-budget').value = data.budget || 0;
@@ -1126,10 +1143,10 @@ function openEditProperty(name) {
   document.getElementById('edit-prop-arv').value = data.arv || 0;
   const container = document.getElementById('edit-sow-list');
   container.innerHTML = '';
-  (data.items || []).forEach(item => {
+  items.forEach(item => {
     const div = document.createElement('div');
     div.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:7px;';
-    div.innerHTML = `<span style="font-size:11px;color:var(--gray-400);width:36px;flex-shrink:0;">${item.code||''}</span><span style="flex:1;font-size:13px;">${item.name}</span><span style="font-size:12px;color:var(--gray-400);">$</span><input type="number" data-sow="${item.name}" value="${item.budget||0}" min="0" style="width:90px;padding:6px 8px;font-size:13px;border:1.5px solid var(--gray-200);border-radius:6px;text-align:right;" />`;
+    div.innerHTML = `<span style="font-size:11px;color:var(--gray-400);width:36px;flex-shrink:0;">${item.code||''}</span><span style="flex:1;font-size:13px;">${item.name}</span><span style="font-size:12px;color:var(--gray-400);">$</span><input type="number" data-sow="${item.name}" data-code="${item.code||''}" data-phase="${item.phase||''}" value="${item.budget||0}" min="0" style="width:90px;padding:6px 8px;font-size:13px;border:1.5px solid var(--gray-200);border-radius:6px;text-align:right;" />`;
     container.appendChild(div);
   });
   document.getElementById('edit-prop-modal').classList.add('open');
@@ -1142,7 +1159,8 @@ async function saveEditProperty() {
   const purchase = parseFloat(document.getElementById('edit-prop-purchase').value) || 0;
   const arv      = parseFloat(document.getElementById('edit-prop-arv').value) || 0;
   if (!newName) { showToast('Property name required', 'error'); return; }
-  const items = (properties[oldName]?.items || []).map(item => {
+  const sourceItems = dedupeItems(properties[oldName]?.items || []);
+  const items = sourceItems.map(item => {
     const inp = document.querySelector(`#edit-sow-list [data-sow="${item.name}"]`);
     return { ...item, budget: inp ? parseFloat(inp.value)||0 : item.budget };
   });
@@ -1153,7 +1171,7 @@ async function saveEditProperty() {
   }
   properties[newName] = { budget, purchase, arv, items };
   localStorage.setItem('flip_properties', JSON.stringify(properties));
-  const url = localStorage.getItem('flip_script_url');
+  const url = SCRIPT_URL;
   if (url) { try { fetch(url, { method:'POST', body: JSON.stringify({ action:'saveProperties', properties }) }); } catch(e) {} }
   if (currentUser.role === 'admin') myProperties = Object.keys(properties);
   buildPropChecks(); renderPropList(); renderUserList();
@@ -1168,7 +1186,7 @@ async function saveEditProperty() {
 
 // ═══ SCRIPT URL ═══════════════════════════════════════════════════════════════
 async function syncEverythingToSheet() {
-  const url = localStorage.getItem('flip_script_url');
+  const url = SCRIPT_URL;
   if (!url) { showToast('No sheet URL set — go to Connect Google Sheet', 'error'); return; }
   showToast('Syncing...', 'success');
   try {
