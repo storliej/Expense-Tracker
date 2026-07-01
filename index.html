@@ -316,7 +316,10 @@
 
     <!-- SOW -->
     <div id="page-sow" class="page">
-      <div class="field"><select id="sow-prop-sel" onchange="renderSOW()"></select></div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;">
+        <select id="sow-prop-sel" onchange="renderSOW()" style="flex:1;padding:11px 32px 11px 13px;font-size:15px;font-family:var(--font);border:1.5px solid var(--gray-200);border-radius:var(--radius);appearance:none;background:#fff url('data:image/svg+xml,%3Csvg width=\\'10\\' height=\\'6\\' viewBox=\\'0 0 10 6\\' xmlns=\\'http://www.w3.org/2000/svg\\'%3E%3Cpath d=\\'M1 1l4 4 4-4\\' stroke=\\'%23888780\\' stroke-width=\\'1.5\\' fill=\\'none\\' stroke-linecap=\\'round\\'/%3E%3C/svg%3E') no-repeat right 12px center;outline:none;"></select>
+        <button onclick="refreshExpenses()" style="background:var(--brand-light);border:1.5px solid #B5D4F4;border-radius:var(--radius);padding:10px 12px;cursor:pointer;font-size:18px;flex-shrink:0;" title="Refresh from sheet">🔄</button>
+      </div>
       <div class="stats-row" id="sow-stats"></div>
       <div class="card" id="sow-lines"></div>
     </div>
@@ -668,6 +671,7 @@ async function doLogin() {
       if (json.users) { users = json.users; localStorage.setItem('flip_users', JSON.stringify(users)); }
       if (json.properties) { properties = json.properties; localStorage.setItem('flip_properties', JSON.stringify(properties)); }
       if (json.branding) { branding = json.branding; localStorage.setItem('flip_branding', JSON.stringify(branding)); applyBranding(); }
+      if (json.expenses && json.expenses.length > 0) { expenses = json.expenses; localStorage.setItem('flip_expenses', JSON.stringify(expenses)); }
     } catch(e) {}
   }
   const user = users.find(u => u.name.toLowerCase()===nameVal.toLowerCase() && u.pin===pinVal)
@@ -747,22 +751,16 @@ function updateSOWItems() {
   sel.innerHTML = '<option value="">Select line item...</option>';
   if (!prop) { sel.innerHTML = '<option value="">Select property first...</option>'; return; }
   const items = properties[prop]?.items || [];
-  // Only show items with a budget set, grouped by phase
+  // Show items that have a budget OR have been used in an expense for this property
+  const usedNames = new Set(expenses.filter(e=>e.property===prop).map(e=>e.sow));
+  const budgetedItems = items.filter(item => (item.budget && item.budget > 0) || usedNames.has(item.name));
+  const displayItems = budgetedItems.length > 0 ? budgetedItems : items; // fall back to all if none budgeted
   const phases = {};
-  items.forEach(item => {
-    if (!item.budget || item.budget <= 0) return; // skip $0 items
+  displayItems.forEach(item => {
     const ph = item.phase || 'Other';
     if (!phases[ph]) phases[ph] = [];
     phases[ph].push(item);
   });
-  if (Object.keys(phases).length === 0) {
-    // No budgeted items yet — show all so user can still log
-    items.forEach(item => {
-      const ph = item.phase || 'Other';
-      if (!phases[ph]) phases[ph] = [];
-      phases[ph].push(item);
-    });
-  }
   Object.entries(phases).forEach(([phase, phItems]) => {
     const og = document.createElement('optgroup');
     og.label = phase;
@@ -1226,6 +1224,22 @@ function saveScriptUrl() {
 }
 
 // ═══ UTILS ════════════════════════════════════════════════════════════════════
+async function refreshExpenses() {
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=getUsers');
+    const json = await res.json();
+    if (json.expenses && json.expenses.length > 0) {
+      expenses = json.expenses;
+      localStorage.setItem('flip_expenses', JSON.stringify(expenses));
+      renderSOW();
+      renderExpenses();
+      showToast('✓ Expenses refreshed', 'success');
+    } else {
+      showToast('No expenses found in sheet', 'success');
+    }
+  } catch(e) { showToast('Could not reach sheet', 'error'); }
+}
+
 function fmtSize(b){if(b<1024)return b+' B';if(b<1048576)return Math.round(b/1024)+' KB';return (b/1048576).toFixed(1)+' MB';}
 let toastT;
 function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast ${type} show`;clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3500);}
